@@ -10,7 +10,10 @@ const PORT = process.env.PORT || 3000;
 
 app.use(helmet());
 app.use(cors({
-    origin: ['http://localhost:3001'],
+   origin: [
+    "http://localhost:5173",
+    "https://akademik-v2.vercel.app"
+  ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
