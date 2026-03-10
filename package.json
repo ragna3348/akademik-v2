@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js"
-  },
+    "scripts": {
+    "build": "npx prisma generate",
+    "start": "npx prisma migrate deploy && node index.js"
+    },
   "keywords": [],
   "author": "",
   "license": "ISC",
