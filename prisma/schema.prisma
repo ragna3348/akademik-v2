@@ -1,0 +1,376 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== ENUM ====================
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  AKADEMIK
+  KEUANGAN
+  KAPRODI
+  DOSEN
+  MAHASISWA
+  PAMABA
+  PENDAFTAR
+}
+
+enum StatusKRS {
+  DRAFT
+  DIAJUKAN
+  DISETUJUI
+  DITOLAK
+  TERLAMBAT
+  PENGECUALIAN
+}
+
+enum StatusMahasiswa {
+  AKTIF
+  CUTI
+  LULUS
+  DROPOUT
+  CALON
+}
+
+enum StatusPendaftar {
+  DAFTAR
+  BAYAR
+  LULUS
+  GUGUR
+}
+
+enum StatusPembayaran {
+  BELUM_BAYAR
+  SUDAH_BAYAR
+  CICILAN
+}
+
+enum StatusKeuangan {
+  belum_bayar
+  sudah_bayar
+}
+
+// ==================== USER & ROLE ====================
+
+model User {
+  id        Int        @id @default(autoincrement())
+  nama      String
+  email     String     @unique
+  password  String
+  status    Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  roles     UserRole[]
+}
+
+model UserRole {
+  id     Int  @id @default(autoincrement())
+  userId Int
+  role   Role
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role])
+}
+
+// ==================== FAKULTAS ====================
+
+model Fakultas {
+  id        Int      @id @default(autoincrement())
+  nama      String
+  kode      String   @unique
+  isAktif   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  prodi     Prodi[]
+}
+
+// ==================== JENIS KELAS ====================
+
+model JenisKelas {
+  id         Int         @id @default(autoincrement())
+  nama       String
+  kodeAngka  Int         @unique
+  isAktif    Boolean     @default(true)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  pendaftar  Pendaftar[]
+  mahasiswa  Mahasiswa[]
+}
+
+// ==================== PRODI ====================
+
+model Prodi {
+  id         Int          @id @default(autoincrement())
+  kode       String       @unique
+  kodeNim    String       @unique
+  nama       String
+  jenjang    String
+  peminatan  String?
+  isAktif    Boolean      @default(true)
+  fakultasId Int?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  fakultas   Fakultas?    @relation(fields: [fakultasId], references: [id])
+  mahasiswa  Mahasiswa[]
+  dosen      Dosen[]
+  pendaftar  Pendaftar[]
+  mataKuliah MataKuliah[]
+}
+
+// ==================== DOSEN ====================
+
+model Dosen {
+  id                 Int            @id @default(autoincrement())
+  nidn               String         @unique
+  nama               String
+  email              String?        @unique
+  telepon            String?
+  foto               String?
+  jabatan            String?
+  pendidikanTerakhir String?
+  isAktif            Boolean        @default(true)
+  prodiId            Int?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  prodi              Prodi?         @relation(fields: [prodiId], references: [id])
+  mahasiswa          Mahasiswa[]    @relation("DosenWali")
+  mengajar           JadwalKuliah[]
+}
+
+// ==================== MAHASISWA ====================
+
+model Mahasiswa {
+  id            Int             @id @default(autoincrement())
+  nim           String          @unique
+  nama          String
+  email         String?         @unique
+  telepon       String?
+  alamat        String?
+  foto          String?
+  tahunAngkatan Int
+  semester      Int             @default(1)
+  status        StatusMahasiswa @default(AKTIF)
+  prodiId       Int
+  jenisKelasId  Int?
+  dosenWaliId   Int?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  prodi         Prodi           @relation(fields: [prodiId], references: [id])
+  jenisKelas    JenisKelas?     @relation(fields: [jenisKelasId], references: [id])
+  dosenWali     Dosen?          @relation("DosenWali", fields: [dosenWaliId], references: [id])
+  krs           KRS[]
+  keuangan      Keuangan[]
+}
+
+// ==================== MATA KULIAH ====================
+
+model MataKuliah {
+  id         Int            @id @default(autoincrement())
+  kode       String         @unique
+  nama       String
+  sks        Int
+  semester   Int
+  jenis      String         @default("WAJIB")
+  deskripsi  String?
+  isAktif    Boolean        @default(true)
+  prodiId    Int
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  prodi      Prodi          @relation(fields: [prodiId], references: [id])
+  detailKRS  DetailKRS[]
+  jadwal     JadwalKuliah[]
+}
+
+// ==================== KRS ====================
+
+model PeriodeKRS {
+  id           Int      @id @default(autoincrement())
+  nama         String
+  semester     Int
+  tahunAjaran  String
+  tanggalBuka  DateTime
+  tanggalTutup DateTime
+  isAktif      Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  krs          KRS[]
+}
+
+model KRS {
+  id           Int        @id @default(autoincrement())
+  mahasiswaId  Int
+  periodeId    Int
+  status       StatusKRS  @default(DRAFT)
+  totalSks     Int        @default(0)
+  approvedById Int?
+  approvedRole String?
+  approvedAt   DateTime?
+  catatanTolak String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  mahasiswa    Mahasiswa  @relation(fields: [mahasiswaId], references: [id])
+  periode      PeriodeKRS @relation(fields: [periodeId], references: [id])
+  detailKRS    DetailKRS[]
+
+  @@unique([mahasiswaId, periodeId])
+}
+
+model DetailKRS {
+  id           Int        @id @default(autoincrement())
+  krsId        Int
+  mataKuliahId Int
+  createdAt    DateTime   @default(now())
+  krs          KRS        @relation(fields: [krsId], references: [id], onDelete: Cascade)
+  mataKuliah   MataKuliah @relation(fields: [mataKuliahId], references: [id])
+
+  @@unique([krsId, mataKuliahId])
+}
+
+// ==================== JADWAL ====================
+
+model JadwalKuliah {
+  id           Int        @id @default(autoincrement())
+  mataKuliahId Int
+  dosenId      Int?
+  hari         String
+  jamMulai     String
+  jamSelesai   String
+  ruangan      String?
+  tahunAjaran  String?
+  semester     Int?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  mataKuliah   MataKuliah @relation(fields: [mataKuliahId], references: [id])
+  dosen        Dosen?     @relation(fields: [dosenId], references: [id])
+}
+
+// ==================== KEUANGAN ====================
+
+model Keuangan {
+  id          Int            @id @default(autoincrement())
+  mahasiswaId Int
+  jenis       String
+  nominal     Float
+  status      StatusKeuangan @default(belum_bayar)
+  keterangan  String?
+  tanggal     DateTime       @default(now())
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  mahasiswa   Mahasiswa      @relation(fields: [mahasiswaId], references: [id])
+}
+
+// ==================== PAMABA ====================
+
+model Gelombang {
+  id           Int         @id @default(autoincrement())
+  nama         String
+  tahun        Int
+  tanggalBuka  DateTime
+  tanggalTutup DateTime
+  biayaDaftar  Int
+  isAktif      Boolean     @default(false)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  pendaftar    Pendaftar[]
+}
+
+model Pendaftar {
+  id            Int              @id @default(autoincrement())
+  noPendaftaran String           @unique
+  nama          String
+  nik           String?
+  nisn          String?
+  tempatLahir   String?
+  tanggalLahir  DateTime?
+  jenisKelamin  String?
+  agama         String?
+  email         String           @unique
+  telepon       String?
+  alamat        String?
+  asalSekolah   String?
+  tahunLulus    Int?
+  nilaiRaport   Float?
+  gelombangId   Int?
+  prodiId       Int
+  jenisKelasId  Int?
+  tahunDaftar   Int
+  status        StatusPendaftar  @default(DAFTAR)
+  foto          String?
+  dokumenKTP    String?
+  dokumenKK     String?
+  dokumenIjazah String?
+  afiliasiId    Int?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  gelombang     Gelombang?       @relation(fields: [gelombangId], references: [id])
+  prodi         Prodi            @relation(fields: [prodiId], references: [id])
+  jenisKelas    JenisKelas?      @relation(fields: [jenisKelasId], references: [id])
+  pembayaran    PembayaranMaba[]
+  afiliasi      UserAfiliasi?    @relation(fields: [afiliasiId], references: [id])
+}
+
+model PembayaranMaba {
+  id          Int              @id @default(autoincrement())
+  pendaftarId Int
+  jenis       String
+  nominal     Int
+  status      StatusPembayaran @default(BELUM_BAYAR)
+  keterangan  String?
+  tanggal     DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  pendaftar   Pendaftar        @relation(fields: [pendaftarId], references: [id])
+}
+
+model UserAfiliasi {
+  id           Int         @id @default(autoincrement())
+  nama         String
+  email        String?
+  telepon      String?
+  kodeAfiliasi String      @unique
+  isAktif      Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  pendaftar    Pendaftar[]
+}
+
+// ==================== LAINNYA ====================
+
+model BankSoal {
+  id         Int      @id @default(autoincrement())
+  pertanyaan String
+  tipeSoal   String
+  opsiA      String?
+  opsiB      String?
+  opsiC      String?
+  opsiD      String?
+  jawaban    String
+  kategori   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model TemplatePesan {
+  id        Int      @id @default(autoincrement())
+  nama      String
+  jenis     String
+  subjek    String?
+  isi       String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SettingUmum {
+  id         Int      @id @default(autoincrement())
+  kunci      String   @unique
+  nilai      String
+  keterangan String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
