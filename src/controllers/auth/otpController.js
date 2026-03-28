@@ -15,12 +15,9 @@ setInterval(() => {
     }
 }, 5 * 60 * 1000);
 
-// Generate OTP 6 digit menggunakan crypto yang lebih aman
+// Generate OTP 6 digit menggunakan crypto
 const generateOTP = () => {
-    // Pastikan angka 6 digit: 100000 - 999999
-    const array = new Uint32Array(1);
-    require('crypto').getRandomValues(array);
-    return String(100000 + (array[0] % 900000));
+    return String(require('crypto').randomInt(100000, 1000000));
 };
 
 // Helper sanitasi error
@@ -96,19 +93,29 @@ const kirimKodeOTP = async (req, res) => {
             attempts
         });
 
+        // Verifikasi ENV
+        if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+            console.error('Email credentials di .env atau server belum di set!');
+            return res.status(500).json({
+                success: false,
+                message: 'Server sedang mengalami gangguan pengiriman email, harap hubungi administrator.'
+            });
+        }
+
         // Kirim OTP ke email
         await kirimOTP(email, otp, nama);
 
         res.json({
             success: true,
-            message: `Kode OTP telah dikirim ke ${email}!`
+            message: `Kode OTP telah dikirim ke ${email}!`,
+            otp: process.env.NODE_ENV === 'development' ? otp : undefined // Untuk testing lokal
         });
 
     } catch (error) {
-        console.error('Error kirim OTP:', error);
+        console.error('Error kirim OTP:', error.message);
         res.status(500).json({
             success: false,
-            message: 'Gagal mengirim OTP! Cek konfigurasi email.'
+            message: 'Gagal mengirim kode ke email. Pastikan format email Anda benar!'
         });
     }
 };
@@ -218,15 +225,29 @@ const kirimUlangOTP = async (req, res) => {
 
         otpStore.set(email, { ...data, otp, expiredAt, attempts });
 
+        // Cek ENV email
+        if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+            return res.status(500).json({
+                success: false,
+                message: 'Server sedang mengalami gangguan pengiriman email.'
+            });
+        }
+
+        // Kirim ulang OTP
         await kirimOTP(email, otp, data.nama);
 
         res.json({
             success: true,
-            message: `OTP baru telah dikirim ke ${email}!`
+            message: `OTP baru telah dikirim ke ${email}!`,
+            otp: process.env.NODE_ENV === 'development' ? otp : undefined
         });
 
     } catch (error) {
-        res.status(500).json({ success: false, message: safeError(error) });
+        console.error('Error resend OTP:', error.message);
+        res.status(500).json({
+            success: false,
+            message: 'Gagal mengirim ulang OTP.'
+        });
     }
 };
 
