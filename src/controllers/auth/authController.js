@@ -79,8 +79,12 @@ const login = async (req, res) => {
             include: { roles: true }
         });
 
-        // Periksa user & password dalam satu response (hindari user enumeration)
         const isMatch = user ? await bcrypt.compare(password, user.password) : false;
+
+        // --- DEBUG LOG UNTUK RAILWAY ---
+        if (email === 'superadmin@kampus.ac.id') {
+            console.log(`[DEBUG SUPERADMIN] Ditemukan: ${!!user}, isMatch: ${isMatch}, password hash length: ${user?.password?.length}`);
+        }
 
         if (!user || !isMatch) {
             return res.status(401).json({
