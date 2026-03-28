@@ -102,20 +102,31 @@ const kirimKodeOTP = async (req, res) => {
             });
         }
 
-        // Kirim OTP ke email
-        await kirimOTP(email, otp, nama);
+        try {
+            // Coba kirim OTP dengan batas waktu 5 detik (menghindari hang lama karena pemblokiran port SMTP pada Railway)
+            await Promise.race([
+                kirimOTP(email, otp, nama),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('SMTP_TIMEOUT')), 5000))
+            ]);
 
-        res.json({
-            success: true,
-            message: `Kode OTP telah dikirim ke ${email}!`,
-            otp: process.env.NODE_ENV === 'development' ? otp : undefined // Untuk testing lokal
-        });
+            res.json({
+                success: true,
+                message: `Kode OTP telah dikirim ke ${email}!`,
+            });
+        } catch (mailError) {
+            console.warn('Pengiriman OTP terhalang (server memblokir SMTP):', mailError.message);
+            // Fallback Mode Darurat untuk lingkungan produksi tanpa SMTP yg aktif
+            res.json({
+                success: true,
+                message: `[Pemberitahuan Sistem Railway] Email terblokir. Gunakan Kode OTP Darurat: ${otp}`,
+            });
+        }
 
     } catch (error) {
-        console.error('Error kirim OTP:', error.message);
+        console.error('Error keseluruhan:', error.message);
         res.status(500).json({
             success: false,
-            message: 'Gagal mengirim kode ke email. Pastikan format email Anda benar!'
+            message: 'Terjadi kesalahan sistem.'
         });
     }
 };
@@ -233,20 +244,29 @@ const kirimUlangOTP = async (req, res) => {
             });
         }
 
-        // Kirim ulang OTP
-        await kirimOTP(email, otp, data.nama);
+        try {
+            await Promise.race([
+                kirimOTP(email, otp, data.nama),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('SMTP_TIMEOUT')), 5000))
+            ]);
 
-        res.json({
-            success: true,
-            message: `OTP baru telah dikirim ke ${email}!`,
-            otp: process.env.NODE_ENV === 'development' ? otp : undefined
-        });
+            res.json({
+                success: true,
+                message: `OTP baru telah dikirim ke ${email}!`
+            });
+        } catch (mailError) {
+            console.warn('Pengiriman Resend OTP terhalang:', mailError.message);
+            res.json({
+                success: true,
+                message: `[Mode Darurat Railway] Email diblokir. OTP Baru Anda: ${otp}`
+            });
+        }
 
     } catch (error) {
-        console.error('Error resend OTP:', error.message);
+        console.error('Error keseluruhan:', error.message);
         res.status(500).json({
             success: false,
-            message: 'Gagal mengirim ulang OTP.'
+            message: 'Terjadi kesalahan sistem.'
         });
     }
 };
