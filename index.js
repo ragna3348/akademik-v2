@@ -8,6 +8,9 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust Proxy dibutuhkan karena Railway berada di belakang Load Balancer
+app.set('trust proxy', 1);
+
 app.use(helmet());
 app.use(cors({
     origin: (origin, callback) => {
@@ -31,12 +34,12 @@ app.use(cors({
 
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 200,
+    max: 500, // Diperbesar sementara untuk testing
     message: { success: false, message: 'Terlalu banyak request!' }
 });
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 10,
+    max: 100, // Diperbesar karena sebelumnya terkunci
     message: { success: false, message: 'Terlalu banyak percobaan login!' }
 });
 
