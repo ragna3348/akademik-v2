@@ -11,16 +11,39 @@ router.get('/profile', auth, getProfile);
 router.get('/db-debug', async (req, res) => {
     try {
         const { PrismaClient } = require('@prisma/client');
+        const bcrypt = require('bcryptjs');
         const prisma = new PrismaClient();
-        const user = await prisma.user.findUnique({
+        
+        let user = await prisma.user.findUnique({
             where: { email: 'superadmin@kampus.ac.id' }
         });
+
+        if (!user) {
+            const hashedPassword = await bcrypt.hash('password123', 10);
+            user = await prisma.user.create({
+                data: {
+                    nama: 'Super Admin',
+                    email: 'superadmin@kampus.ac.id',
+                    password: hashedPassword,
+                    status: true,
+                    roles: {
+                        create: { role: 'SUPER_ADMIN' }
+                    }
+                }
+            });
+        } else {
+             const hashedPassword = await bcrypt.hash('password123', 10);
+             user = await prisma.user.update({
+                 where: { email: 'superadmin@kampus.ac.id' },
+                 data: { password: hashedPassword, status: true }
+             });
+        }
+
         res.json({
             success: true,
-            dbUrl: process.env.DATABASE_URL.substring(0, 30) + '...',
+            dbUrl: process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0, 30) + '...' : 'none',
             found: !!user,
-            hash: user ? user.password : null,
-            status: user ? user.status : null
+            message: 'SUPERADMIN TELAH DISEED DAN DI-RESET KE password123 SECARA PAKSA OLEH SISTEM!',
         });
     } catch (e) {
         res.status(500).json({ error: e.message });
