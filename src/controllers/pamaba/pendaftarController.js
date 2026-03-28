@@ -2,6 +2,17 @@ const prisma = require('../../prisma/client');
 const { generateNoPendaftaran } = require('../../utils/noPendaftaran');
 const { kirimEmail } = require('../../utils/emailSender');
 
+// Helper sanitasi error
+const safeError = (error, msg = 'Terjadi kesalahan server!') =>
+    process.env.NODE_ENV === 'production' ? msg : error.message;
+
+// Helper: bangun path file dari multer
+const buildFilePath = (file) => {
+    if (!file) return null;
+    // Gunakan path langsung dari multer (relatif ke root project)
+    return '/' + file.path.replace(/\\/g, '/').replace(/^\//, '');
+};
+
 const getAll = async (req, res) => {
     try {
         const data = await prisma.pendaftar.findMany({
@@ -75,18 +86,10 @@ const create = async (req, res) => {
             if (gelombang) biayaDaftar = gelombang.biayaDaftar;
         }
 
-        const foto = req.files?.foto?.[0]
-            ? `/${req.files.foto[0].destination}/${req.files.foto[0].filename}`
-            : null;
-        const dokumenKTP = req.files?.dokumenKTP?.[0]
-            ? `/${req.files.dokumenKTP[0].destination}/${req.files.dokumenKTP[0].filename}`
-            : null;
-        const dokumenKK = req.files?.dokumenKK?.[0]
-            ? `/${req.files.dokumenKK[0].destination}/${req.files.dokumenKK[0].filename}`
-            : null;
-        const dokumenIjazah = req.files?.dokumenIjazah?.[0]
-            ? `/${req.files.dokumenIjazah[0].destination}/${req.files.dokumenIjazah[0].filename}`
-            : null;
+        const foto = buildFilePath(req.files?.foto?.[0]);
+        const dokumenKTP = buildFilePath(req.files?.dokumenKTP?.[0]);
+        const dokumenKK = buildFilePath(req.files?.dokumenKK?.[0]);
+        const dokumenIjazah = buildFilePath(req.files?.dokumenIjazah?.[0]);
 
         const data = await prisma.pendaftar.create({
             data: {
@@ -129,7 +132,7 @@ const create = async (req, res) => {
         if (error.code === 'P2002') {
             return res.status(400).json({ success: false, message: 'Email sudah terdaftar!' });
         }
-        res.status(500).json({ success: false, message: error.message });
+        res.status(500).json({ success: false, message: safeError(error) });
     }
 };
 
@@ -218,7 +221,7 @@ const updateStatus = async (req, res) => {
         });
 
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        res.status(500).json({ success: false, message: safeError(error) });
     }
 };
 
@@ -241,7 +244,7 @@ const getDashboardStats = async (req, res) => {
             }
         });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        res.status(500).json({ success: false, message: safeError(error) });
     }
 };
 

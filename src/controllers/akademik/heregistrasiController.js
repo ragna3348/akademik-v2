@@ -2,6 +2,10 @@ const prisma = require('../../prisma/client');
 const { generateNIM } = require('../../utils/nimGenerator');
 const { kirimEmail } = require('../../utils/emailSender');
 
+// Helper sanitasi error
+const safeError = (error, msg = 'Terjadi kesalahan server!') =>
+    process.env.NODE_ENV === 'production' ? msg : error.message;
+
 // GET /heregistrasi — list pendaftar LULUS
 const getAll = async (req, res) => {
     try {
@@ -25,7 +29,7 @@ const getAll = async (req, res) => {
 
         res.json({ success: true, total: result.length, data: result });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        res.status(500).json({ success: false, message: safeError(error) });
     }
 };
 
@@ -43,7 +47,7 @@ const getMahasiswa = async (req, res) => {
         });
         res.json({ success: true, total: data.length, data });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        res.status(500).json({ success: false, message: safeError(error) });
     }
 };
 
@@ -75,34 +79,39 @@ const proses = async (req, res) => {
             pendaftar.jenisKelasId
         );
 
-        // Buat mahasiswa
-        const mahasiswa = await prisma.mahasiswa.create({
-            data: {
-                nim,
-                nama: pendaftar.nama,
-                email: pendaftar.email,
-                telepon: pendaftar.telepon,
-                alamat: pendaftar.alamat,
-                foto: pendaftar.foto,
-                tahunAngkatan: pendaftar.tahunDaftar,
-                semester: 1,
-                status: 'AKTIF',
-                prodiId: pendaftar.prodiId,
-                jenisKelasId: pendaftar.jenisKelasId
-            },
-            include: { prodi: true, jenisKelas: true }
+        // Jalankan semua operasi dalam satu transaction untuk atomicity
+        const mahasiswa = await prisma.$transaction(async (tx) => {
+            // Buat mahasiswa
+            const mhs = await tx.mahasiswa.create({
+                data: {
+                    nim,
+                    nama: pendaftar.nama,
+                    email: pendaftar.email,
+                    telepon: pendaftar.telepon,
+                    alamat: pendaftar.alamat,
+                    foto: pendaftar.foto,
+                    tahunAngkatan: pendaftar.tahunDaftar,
+                    semester: 1,
+                    status: 'AKTIF',
+                    prodiId: pendaftar.prodiId,
+                    jenisKelasId: pendaftar.jenisKelasId
+                },
+                include: { prodi: true, jenisKelas: true }
+            });
+
+            // Update role: hapus PENDAFTAR, beri MAHASISWA
+            const user = await tx.user.findUnique({ where: { email: pendaftar.email } });
+            if (user) {
+                await tx.userRole.deleteMany({ where: { userId: user.id } });
+                await tx.userRole.create({
+                    data: { userId: user.id, role: 'MAHASISWA' }
+                });
+            }
+
+            return mhs;
         });
 
-        // Update role: hapus PENDAFTAR, beri MAHASISWA
-        const user = await prisma.user.findUnique({ where: { email: pendaftar.email } });
-        if (user) {
-            await prisma.userRole.deleteMany({ where: { userId: user.id } });
-            await prisma.userRole.create({
-                data: { userId: user.id, role: 'MAHASISWA' }
-            });
-        }
-
-        // Kirim email selamat datang
+        // Kirim email selamat datang (di luar transaction agar tidak block)
         try {
             const daftarInfo = [
                 { label: 'Program Studi', value: mahasiswa.prodi?.nama },
@@ -165,7 +174,10 @@ const proses = async (req, res) => {
         });
 
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        if (error.code === 'P2002') {
+            return res.status(400).json({ success: false, message: 'NIM atau email sudah digunakan!' });
+        }
+        res.status(500).json({ success: false, message: safeError(error) });
     }
 };
 
@@ -204,35 +216,37 @@ const prosesMassal = async (req, res) => {
                     pendaftar.jenisKelasId
                 );
 
-                await prisma.mahasiswa.create({
-                    data: {
-                        nim,
-                        nama: pendaftar.nama,
-                        email: pendaftar.email,
-                        telepon: pendaftar.telepon,
-                        alamat: pendaftar.alamat,
-                        foto: pendaftar.foto,
-                        tahunAngkatan: pendaftar.tahunDaftar,
-                        semester: 1,
-                        status: 'AKTIF',
-                        prodiId: pendaftar.prodiId,
-                        jenisKelasId: pendaftar.jenisKelasId
+                // Gunakan transaction untuk atomicity
+                await prisma.$transaction(async (tx) => {
+                    await tx.mahasiswa.create({
+                        data: {
+                            nim,
+                            nama: pendaftar.nama,
+                            email: pendaftar.email,
+                            telepon: pendaftar.telepon,
+                            alamat: pendaftar.alamat,
+                            foto: pendaftar.foto,
+                            tahunAngkatan: pendaftar.tahunDaftar,
+                            semester: 1,
+                            status: 'AKTIF',
+                            prodiId: pendaftar.prodiId,
+                            jenisKelasId: pendaftar.jenisKelasId
+                        }
+                    });
+
+                    const user = await tx.user.findUnique({ where: { email: pendaftar.email } });
+                    if (user) {
+                        await tx.userRole.deleteMany({ where: { userId: user.id } });
+                        await tx.userRole.create({
+                            data: { userId: user.id, role: 'MAHASISWA' }
+                        });
                     }
                 });
-
-                // Update role: hapus PENDAFTAR, beri MAHASISWA
-                const user = await prisma.user.findUnique({ where: { email: pendaftar.email } });
-                if (user) {
-                    await prisma.userRole.deleteMany({ where: { userId: user.id } });
-                    await prisma.userRole.create({
-                        data: { userId: user.id, role: 'MAHASISWA' }
-                    });
-                }
 
                 hasil.push({ id, nama: pendaftar.nama, nim });
 
             } catch (err) {
-                gagal.push({ id, alasan: err.message });
+                gagal.push({ id, alasan: safeError(err) });
             }
         }
 
@@ -243,7 +257,7 @@ const prosesMassal = async (req, res) => {
         });
 
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        res.status(500).json({ success: false, message: safeError(error) });
     }
 };
 
@@ -266,7 +280,7 @@ const pindahProdi = async (req, res) => {
 
         res.json({ success: true, message: `NIM baru: ${nimBaru}`, data: updated });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        res.status(500).json({ success: false, message: safeError(error) });
     }
 };
 

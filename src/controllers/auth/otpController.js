@@ -5,9 +5,27 @@ const { kirimOTP } = require('../../utils/emailSender');
 // Simpan OTP sementara di memory (simple, tanpa tabel baru)
 const otpStore = new Map();
 
-// Generate OTP 6 digit
+// Cleanup OTP expired setiap 5 menit
+setInterval(() => {
+    const now = Date.now();
+    for (const [email, data] of otpStore.entries()) {
+        if (now > data.expiredAt) {
+            otpStore.delete(email);
+        }
+    }
+}, 5 * 60 * 1000);
+
+// Generate OTP 6 digit menggunakan crypto yang lebih aman
 const generateOTP = () => {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+    // Pastikan angka 6 digit: 100000 - 999999
+    const array = new Uint32Array(1);
+    require('crypto').getRandomValues(array);
+    return String(100000 + (array[0] % 900000));
+};
+
+// Helper sanitasi error
+const safeError = (error, defaultMsg = 'Terjadi kesalahan server!') => {
+    return process.env.NODE_ENV === 'production' ? defaultMsg : error.message;
 };
 
 // Kirim OTP ke email
@@ -36,11 +54,17 @@ const kirimKodeOTP = async (req, res) => {
             });
         }
 
-        // Cek email sudah terdaftar
-        const existingUser = await prisma.user.findUnique({
-            where: { email }
-        });
+        // Rate limit per email: max 3 request OTP per 10 menit
+        const existing = otpStore.get(email);
+        if (existing && existing.attempts >= 3 && Date.now() < existing.expiredAt) {
+            return res.status(429).json({
+                success: false,
+                message: 'Terlalu banyak permintaan OTP! Tunggu beberapa menit.'
+            });
+        }
 
+        // Cek email sudah terdaftar di user
+        const existingUser = await prisma.user.findUnique({ where: { email } });
         if (existingUser) {
             return res.status(400).json({
                 success: false,
@@ -49,10 +73,7 @@ const kirimKodeOTP = async (req, res) => {
         }
 
         // Cek email sudah terdaftar di pendaftar
-        const existingPendaftar = await prisma.pendaftar.findUnique({
-            where: { email }
-        });
-
+        const existingPendaftar = await prisma.pendaftar.findUnique({ where: { email } });
         if (existingPendaftar) {
             return res.status(400).json({
                 success: false,
@@ -63,6 +84,7 @@ const kirimKodeOTP = async (req, res) => {
         // Generate OTP
         const otp = generateOTP();
         const expiredAt = Date.now() + 10 * 60 * 1000; // 10 menit
+        const attempts = existing ? (existing.attempts || 0) + 1 : 1;
 
         // Simpan OTP + data user sementara
         otpStore.set(email, {
@@ -70,7 +92,8 @@ const kirimKodeOTP = async (req, res) => {
             expiredAt,
             nama,
             email,
-            password
+            password,
+            attempts
         });
 
         // Kirim OTP ke email
@@ -132,8 +155,8 @@ const verifikasiOTP = async (req, res) => {
         // OTP benar — hapus dari store
         otpStore.delete(email);
 
-        // Buat akun user dengan role MAHASISWA
-        const hashedPassword = await bcrypt.hash(data.password, 10);
+        // Buat akun user dengan role PENDAFTAR
+        const hashedPassword = await bcrypt.hash(data.password, 12);
         const user = await prisma.user.create({
             data: {
                 nama: data.nama,
@@ -164,7 +187,7 @@ const verifikasiOTP = async (req, res) => {
                 message: 'Email sudah terdaftar!'
             });
         }
-        res.status(500).json({ success: false, message: error.message });
+        res.status(500).json({ success: false, message: safeError(error) });
     }
 };
 
@@ -181,10 +204,19 @@ const kirimUlangOTP = async (req, res) => {
             });
         }
 
+        // Rate limit
+        if (data.attempts >= 5) {
+            return res.status(429).json({
+                success: false,
+                message: 'Terlalu banyak permintaan OTP! Tunggu beberapa menit.'
+            });
+        }
+
         const otp = generateOTP();
         const expiredAt = Date.now() + 10 * 60 * 1000;
+        const attempts = (data.attempts || 0) + 1;
 
-        otpStore.set(email, { ...data, otp, expiredAt });
+        otpStore.set(email, { ...data, otp, expiredAt, attempts });
 
         await kirimOTP(email, otp, data.nama);
 
@@ -194,7 +226,7 @@ const kirimUlangOTP = async (req, res) => {
         });
 
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        res.status(500).json({ success: false, message: safeError(error) });
     }
 };
 

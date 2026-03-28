@@ -2,6 +2,14 @@ const prisma = require('../../prisma/client');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
+// Helper validasi email
+const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+// Helper sanitasi error agar tidak bocor ke client
+const safeError = (error, defaultMsg = 'Terjadi kesalahan server!') => {
+    return process.env.NODE_ENV === 'production' ? defaultMsg : error.message;
+};
+
 // Register
 const register = async (req, res) => {
     try {
@@ -13,7 +21,15 @@ const register = async (req, res) => {
             });
         }
 
-        const hashedPassword = await bcrypt.hash(password, 10);
+        if (!isValidEmail(email)) {
+            return res.status(400).json({ success: false, message: 'Format email tidak valid!' });
+        }
+
+        if (password.length < 8) {
+            return res.status(400).json({ success: false, message: 'Password minimal 8 karakter!' });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 12);
 
         const user = await prisma.user.create({
             data: {
@@ -43,7 +59,7 @@ const register = async (req, res) => {
                 message: 'Email sudah terdaftar!'
             });
         }
-        res.status(500).json({ success: false, message: error.message });
+        res.status(500).json({ success: false, message: safeError(error) });
     }
 };
 
@@ -63,7 +79,10 @@ const login = async (req, res) => {
             include: { roles: true }
         });
 
-        if (!user) {
+        // Periksa user & password dalam satu response (hindari user enumeration)
+        const isMatch = user ? await bcrypt.compare(password, user.password) : false;
+
+        if (!user || !isMatch) {
             return res.status(401).json({
                 success: false,
                 message: 'Email atau password salah!'
@@ -74,14 +93,6 @@ const login = async (req, res) => {
             return res.status(401).json({
                 success: false,
                 message: 'Akun Anda telah dinonaktifkan!'
-            });
-        }
-
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
-            return res.status(401).json({
-                success: false,
-                message: 'Email atau password salah!'
             });
         }
 
@@ -105,7 +116,7 @@ const login = async (req, res) => {
             }
         });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        res.status(500).json({ success: false, message: safeError(error) });
     }
 };
 
@@ -116,6 +127,7 @@ const getProfile = async (req, res) => {
             where: { id: req.user.id },
             include: { roles: true }
         });
+        if (!user) return res.status(404).json({ success: false, message: 'User tidak ditemukan!' });
         res.json({
             success: true,
             data: {
@@ -126,7 +138,7 @@ const getProfile = async (req, res) => {
             }
         });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        res.status(500).json({ success: false, message: safeError(error) });
     }
 };
 
@@ -138,31 +150,33 @@ const cekStatus = async (req, res) => {
             include: { roles: true }
         });
 
+        if (!user) return res.status(404).json({ success: false, message: 'User tidak ditemukan!' });
+
         const roles = user.roles.map(r => r.role);
 
-        // Cek apakah role MAHASISWA
-        if (!roles.includes('MAHASISWA')) {
+        // Cek apakah role PENDAFTAR/MAHASISWA  
+        if (roles.includes('MAHASISWA')) {
+            const mahasiswa = await prisma.mahasiswa.findFirst({ where: { email: user.email } });
             return res.json({
                 success: true,
-                data: { sudahDaftar: true, role: roles }
+                data: { sudahDaftar: true, role: roles, mahasiswa }
             });
         }
 
-        // Cek apakah sudah mengisi form pendaftaran
-        const pendaftar = await prisma.pendaftar.findUnique({
-            where: { email: user.email }
-        });
+        if (roles.includes('PENDAFTAR')) {
+            const pendaftar = await prisma.pendaftar.findUnique({ where: { email: user.email } });
+            return res.json({
+                success: true,
+                data: { sudahDaftar: !!pendaftar, role: roles, pendaftar: pendaftar || null }
+            });
+        }
 
         res.json({
             success: true,
-            data: {
-                sudahDaftar: !!pendaftar,
-                role: roles,
-                pendaftar: pendaftar || null
-            }
+            data: { sudahDaftar: true, role: roles }
         });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        res.status(500).json({ success: false, message: safeError(error) });
     }
 };
 

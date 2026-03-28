@@ -1,6 +1,10 @@
 const prisma = require('../../prisma/client');
 const bcrypt = require('bcryptjs');
 
+// Helper sanitasi error
+const safeError = (error, msg = 'Terjadi kesalahan server!') =>
+    process.env.NODE_ENV === 'production' ? msg : error.message;
+
 const getAll = async (req, res) => {
     try {
         const { prodiId, jenisKelasId, status, tahunAngkatan, search } = req.query;
@@ -26,7 +30,7 @@ const getAll = async (req, res) => {
         });
         res.json({ success: true, total: data.length, data });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        res.status(500).json({ success: false, message: safeError(error) });
     }
 };
 
@@ -51,7 +55,7 @@ const getById = async (req, res) => {
         if (!data) return res.status(404).json({ success: false, message: 'Mahasiswa tidak ditemukan!' });
         res.json({ success: true, data });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        res.status(500).json({ success: false, message: safeError(error) });
     }
 };
 
@@ -69,7 +73,17 @@ const create = async (req, res) => {
 
         // Buat akun user jika ada email
         if (email) {
-            const hashed = await bcrypt.hash(password || 'mahasiswa123', 10);
+            // Password wajib diberikan eksplisit - tidak ada default
+            if (!password) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Password wajib diisi untuk membuat akun mahasiswa!'
+                });
+            }
+            if (password.length < 8) {
+                return res.status(400).json({ success: false, message: 'Password minimal 8 karakter!' });
+            }
+            const hashed = await bcrypt.hash(password, 12);
             const existingUser = await prisma.user.findUnique({ where: { email } });
             if (!existingUser) {
                 await prisma.user.create({
@@ -102,7 +116,7 @@ const create = async (req, res) => {
         if (error.code === 'P2002') {
             return res.status(400).json({ success: false, message: 'NIM atau email sudah digunakan!' });
         }
-        res.status(500).json({ success: false, message: error.message });
+        res.status(500).json({ success: false, message: safeError(error) });
     }
 };
 
@@ -132,7 +146,10 @@ const update = async (req, res) => {
         });
         res.json({ success: true, message: 'Mahasiswa berhasil diupdate!', data });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        if (error.code === 'P2002') {
+            return res.status(400).json({ success: false, message: 'Email sudah digunakan oleh mahasiswa lain!' });
+        }
+        res.status(500).json({ success: false, message: safeError(error) });
     }
 };
 
@@ -143,7 +160,7 @@ const naikSemester = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Pilih minimal 1 mahasiswa!' });
         }
 
-        await prisma.mahasiswa.updateMany({
+        const result = await prisma.mahasiswa.updateMany({
             where: {
                 id: { in: mahasiswaIds.map(Number) },
                 status: 'AKTIF',
@@ -152,9 +169,9 @@ const naikSemester = async (req, res) => {
             data: { semester: { increment: 1 } }
         });
 
-        res.json({ success: true, message: `${mahasiswaIds.length} mahasiswa berhasil naik semester!` });
+        res.json({ success: true, message: `${result.count} mahasiswa berhasil naik semester!` });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        res.status(500).json({ success: false, message: safeError(error) });
     }
 };
 
@@ -163,7 +180,10 @@ const remove = async (req, res) => {
         await prisma.mahasiswa.delete({ where: { id: parseInt(req.params.id) } });
         res.json({ success: true, message: 'Mahasiswa berhasil dihapus!' });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        if (error.code === 'P2025') {
+            return res.status(404).json({ success: false, message: 'Mahasiswa tidak ditemukan!' });
+        }
+        res.status(500).json({ success: false, message: safeError(error) });
     }
 };
 

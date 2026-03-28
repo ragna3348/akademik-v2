@@ -1,4 +1,7 @@
 node_modules/
 .env
-prisma/migrations/
+.env.local
 public/uploads/
+src/generated/
+*.log
+*.txt

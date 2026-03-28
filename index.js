@@ -10,26 +10,36 @@ const PORT = process.env.PORT || 3000;
 
 app.use(helmet());
 app.use(cors({
-    origin: ['http://localhost:3001'],
+    origin: [
+        'http://localhost:3001',
+        'http://localhost:3000',
+        process.env.FRONTEND_URL,
+    ].filter(Boolean),
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 100,
+    max: 200,
     message: { success: false, message: 'Terlalu banyak request!' }
 });
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 5,
+    max: 10,
     message: { success: false, message: 'Terlalu banyak percobaan login!' }
 });
 
 app.use(limiter);
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/public', express.static(path.join(__dirname, 'public')));
+
+// ===== ROOT =====
+app.get('/', (req, res) => {
+    res.json({ message: "🎓 API Sistem Akademik", versi: "7.0.0" });
+});
 
 // ===== AUTH =====
 app.use('/auth', loginLimiter, require('./src/routes/auth/authRoutes'));
@@ -69,14 +79,14 @@ app.use('/pengaturan/setting', require('./src/routes/pengaturan/settingRoutes'))
 
 // ===== ERROR HANDLER =====
 app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({ success: false, message: 'Terjadi kesalahan server!' });
-});
-
-app.get('/', (req, res) => {
-    res.json({ message: "🎓 API Sistem Akademik", versi: "5.0.0" });
+    console.error('[ERROR]', err.stack);
+    const isProd = process.env.NODE_ENV === 'production';
+    res.status(err.status || 500).json({
+        success: false,
+        message: isProd ? 'Terjadi kesalahan server!' : err.message
+    });
 });
 
 app.listen(PORT, () => {
     console.log(`✅ Server berjalan di http://localhost:${PORT}`);
-});
+});
