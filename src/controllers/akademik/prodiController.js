@@ -5,6 +5,8 @@ const getAll = async (req, res) => {
         const data = await prisma.prodi.findMany({
             orderBy: { nama: 'asc' },
             include: {
+                fakultas: true,
+                kaprodi: true,
                 _count: {
                     select: { mahasiswa: true, dosen: true }
                 }
@@ -21,6 +23,8 @@ const getById = async (req, res) => {
         const data = await prisma.prodi.findUnique({
             where: { id: parseInt(req.params.id) },
             include: {
+                fakultas: true,
+                kaprodi: true,
                 _count: { select: { mahasiswa: true, dosen: true } }
             }
         });
@@ -35,7 +39,7 @@ const getById = async (req, res) => {
 
 const create = async (req, res) => {
     try {
-        const { kode, kodeNim, nama, jenjang } = req.body;
+        const { kode, kodeNim, nama, jenjang, fakultasId, skProdi, akreditasi, tglExAkreditasi, kaprodiId } = req.body;
 
         if (!kode || !kodeNim || !nama || !jenjang) {
             return res.status(400).json({
@@ -45,7 +49,15 @@ const create = async (req, res) => {
         }
 
         const data = await prisma.prodi.create({
-            data: { kode, kodeNim, nama, jenjang }
+            data: {
+                kode, kodeNim, nama, jenjang,
+                fakultasId: fakultasId ? parseInt(fakultasId) : null,
+                skProdi: skProdi || null,
+                akreditasi: akreditasi || null,
+                tglExAkreditasi: tglExAkreditasi ? new Date(tglExAkreditasi) : null,
+                kaprodiId: kaprodiId ? parseInt(kaprodiId) : null
+            },
+            include: { fakultas: true, kaprodi: true }
         });
 
         res.status(201).json({
@@ -63,10 +75,18 @@ const create = async (req, res) => {
 
 const update = async (req, res) => {
     try {
-        const { kodeNim, nama, jenjang } = req.body;
+        const { kodeNim, nama, jenjang, fakultasId, skProdi, akreditasi, tglExAkreditasi, kaprodiId } = req.body;
         const data = await prisma.prodi.update({
             where: { id: parseInt(req.params.id) },
-            data: { kodeNim, nama, jenjang }
+            data: {
+                kodeNim, nama, jenjang,
+                fakultasId: fakultasId ? parseInt(fakultasId) : null,
+                skProdi: skProdi || null,
+                akreditasi: akreditasi || null,
+                tglExAkreditasi: tglExAkreditasi ? new Date(tglExAkreditasi) : null,
+                kaprodiId: kaprodiId ? parseInt(kaprodiId) : null
+            },
+            include: { fakultas: true, kaprodi: true }
         });
         res.json({ success: true, message: 'Prodi berhasil diupdate!', data });
     } catch (error) {

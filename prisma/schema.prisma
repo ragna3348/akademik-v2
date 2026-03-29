@@ -94,9 +94,9 @@ model Fakultas {
   prodi     Prodi[]
 }
 
-// ==================== JENIS KELAS ====================
+// ==================== JENIS MAHASISWA (ex Jenis Kelas) ====================
 
-model JenisKelas {
+model JenisMahasiswa {
   id         Int         @id @default(autoincrement())
   nama       String
   kodeAngka  Int         @unique
@@ -105,27 +105,34 @@ model JenisKelas {
   updatedAt  DateTime    @updatedAt
   pendaftar  Pendaftar[]
   mahasiswa  Mahasiswa[]
+
+  @@map("JenisMahasiswa")
 }
 
 // ==================== PRODI ====================
 
 model Prodi {
-  id         Int          @id @default(autoincrement())
-  kode       String       @unique
-  kodeNim    String       @unique
-  nama       String
-  jenjang    String
-  peminatan  String?
-  isAktif    Boolean      @default(true)
-  fakultasId Int?
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
-  fakultas   Fakultas?    @relation(fields: [fakultasId], references: [id])
-  mahasiswa  Mahasiswa[]
-  dosen      Dosen[]
-  pendaftar1 Pendaftar[]  @relation("PilihanSatu")
-  pendaftar2 Pendaftar[]  @relation("PilihanDua")
-  mataKuliah MataKuliah[]
+  id              Int          @id @default(autoincrement())
+  kode            String       @unique
+  kodeNim         String       @unique
+  nama            String
+  jenjang         String
+  peminatan       String?
+  isAktif         Boolean      @default(true)
+  fakultasId      Int?
+  skProdi         String?
+  akreditasi      String?
+  tglExAkreditasi DateTime?
+  kaprodiId       Int?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  fakultas        Fakultas?    @relation(fields: [fakultasId], references: [id])
+  kaprodi         Dosen?       @relation("Kaprodi", fields: [kaprodiId], references: [id])
+  mahasiswa       Mahasiswa[]
+  dosen           Dosen[]
+  pendaftar1      Pendaftar[]  @relation("PilihanSatu")
+  pendaftar2      Pendaftar[]  @relation("PilihanDua")
+  mataKuliah      MataKuliah[]
 }
 
 // ==================== DOSEN ====================
@@ -146,29 +153,30 @@ model Dosen {
   prodi              Prodi?         @relation(fields: [prodiId], references: [id])
   mahasiswa          Mahasiswa[]    @relation("DosenWali")
   mengajar           JadwalKuliah[]
+  kaprodiProdi       Prodi[]        @relation("Kaprodi")
 }
 
 // ==================== MAHASISWA ====================
 
 model Mahasiswa {
-  id            Int             @id @default(autoincrement())
-  nim           String          @unique
+  id            Int              @id @default(autoincrement())
+  nim           String           @unique
   nama          String
-  email         String?         @unique
+  email         String?          @unique
   telepon       String?
   alamat        String?
   foto          String?
   tahunAngkatan Int
-  semester      Int             @default(1)
-  status        StatusMahasiswa @default(AKTIF)
+  semester      Int              @default(1)
+  status        StatusMahasiswa  @default(AKTIF)
   prodiId       Int
-  jenisKelasId  Int?
+  jenisMhsId    Int?
   dosenWaliId   Int?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  prodi         Prodi           @relation(fields: [prodiId], references: [id])
-  jenisKelas    JenisKelas?     @relation(fields: [jenisKelasId], references: [id])
-  dosenWali     Dosen?          @relation("DosenWali", fields: [dosenWaliId], references: [id])
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  prodi         Prodi            @relation(fields: [prodiId], references: [id])
+  jenisMhs      JenisMahasiswa?  @relation(fields: [jenisMhsId], references: [id])
+  dosenWali     Dosen?           @relation("DosenWali", fields: [dosenWaliId], references: [id])
   krs           KRS[]
   keuangan      Keuangan[]
 }
@@ -257,6 +265,16 @@ model JadwalKuliah {
 
 // ==================== KEUANGAN ====================
 
+model JenisKeuangan {
+  id         Int      @id @default(autoincrement())
+  kode       String   @unique
+  nama       String
+  keterangan String?
+  isAktif    Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
 model Keuangan {
   id          Int            @id @default(autoincrement())
   mahasiswaId Int
@@ -304,7 +322,7 @@ model Pendaftar {
   gelombangId   Int?
   prodiId       Int
   prodiId2      Int?
-  jenisKelasId  Int?
+  jenisMhsId    Int?
   tahunDaftar   Int
   status        StatusPendaftar  @default(DAFTAR)
   foto          String?
@@ -312,12 +330,13 @@ model Pendaftar {
   dokumenKK     String?
   dokumenIjazah String?
   afiliasiId    Int?
+  sumberInfo    String?
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
   gelombang     Gelombang?       @relation(fields: [gelombangId], references: [id])
   prodi         Prodi            @relation("PilihanSatu", fields: [prodiId], references: [id])
   prodi2        Prodi?           @relation("PilihanDua", fields: [prodiId2], references: [id])
-  jenisKelas    JenisKelas?      @relation(fields: [jenisKelasId], references: [id])
+  jenisMhs      JenisMahasiswa?  @relation(fields: [jenisMhsId], references: [id])
   pembayaran    PembayaranMaba[]
   afiliasi      UserAfiliasi?    @relation(fields: [afiliasiId], references: [id])
   ujianPMB      UjianPMB?

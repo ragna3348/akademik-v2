@@ -51,7 +51,7 @@ app.use('/public', express.static(path.join(__dirname, 'public')));
 
 // ===== ROOT =====
 app.get('/', (req, res) => {
-    res.json({ message: "🎓 API Sistem Akademik", versi: "7.0.0" });
+    res.json({ message: "🎓 API Sistem Akademik", versi: "8.0.0" });
 });
 
 // ===== AUTH =====
@@ -61,7 +61,9 @@ app.use('/otp', require('./src/routes/auth/otpRoutes'));
 // ===== AKADEMIK — urutan penting, spesifik dulu =====
 app.use('/fakultas', require('./src/routes/akademik/fakultasRoutes'));
 app.use('/prodi', require('./src/routes/akademik/prodiRoutes'));
-app.use('/jenis-kelas', require('./src/routes/akademik/jenisKelasRoutes'));
+app.use('/jenis-mahasiswa', require('./src/routes/akademik/jenisMahasiswaRoutes'));
+// Backward compatibility alias
+app.use('/jenis-kelas', require('./src/routes/akademik/jenisMahasiswaRoutes'));
 
 app.use('/akademik/mata-kuliah', require('./src/routes/akademik/mataKuliahRoutes'));
 app.use('/akademik/dosen', require('./src/routes/akademik/dosenRoutes'));
@@ -72,6 +74,7 @@ app.use('/akademik/mahasiswa', require('./src/routes/akademik/mahasiswaRoutes'))
 app.use('/jadwal', require('./src/routes/akademik/jadwalRoutes'));
 
 // ===== KEUANGAN =====
+app.use('/keuangan/jenis', require('./src/routes/keuangan/jenisKeuanganRoutes'));
 app.use('/keuangan', require('./src/routes/keuangan/keuanganRoutes'));
 
 // ===== PAMABA =====
@@ -80,6 +83,7 @@ app.use('/pamaba/pendaftar', require('./src/routes/pamaba/pendaftarRoutes'));
 app.use('/pamaba/pembayaran', require('./src/routes/pamaba/pembayaranMabaRoutes'));
 app.use('/pamaba/afiliasi', require('./src/routes/pamaba/afiliasiRoutes'));
 app.use('/pamaba/ujian', require('./src/routes/pamaba/ujianRoutes'));
+app.use('/pamaba/bank-soal', require('./src/routes/pamaba/bankSoalRoutes'));
 
 // ===== PORTAL MAHASISWA =====
 app.use('/portal', require('./src/routes/portal/portalRoutes'));
@@ -103,4 +107,4 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
     console.log(`✅ Server berjalan di http://localhost:${PORT}`);
-});
+});

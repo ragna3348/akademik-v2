@@ -14,7 +14,7 @@ const getAll = async (req, res) => {
             include: {
                 prodi: true,
                 gelombang: true,
-                jenisKelas: true,
+                jenisMhs: true,
                 pembayaran: true
             },
             orderBy: { createdAt: 'desc' }
@@ -42,7 +42,7 @@ const getCalon = async (req, res) => {
 const getMahasiswa = async (req, res) => {
     try {
         const data = await prisma.mahasiswa.findMany({
-            include: { prodi: true, jenisKelas: true, dosenWali: true },
+            include: { prodi: true, jenisMhs: true, dosenWali: true },
             orderBy: { nim: 'asc' }
         });
         res.json({ success: true, total: data.length, data });
@@ -57,7 +57,7 @@ const proses = async (req, res) => {
         const pendaftarId = parseInt(req.params.pendaftarId);
         const pendaftar = await prisma.pendaftar.findUnique({
             where: { id: pendaftarId },
-            include: { prodi: true, jenisKelas: true }
+            include: { prodi: true, jenisMhs: true }
         });
 
         if (!pendaftar) {
@@ -76,7 +76,7 @@ const proses = async (req, res) => {
         const nim = await generateNIM(
             pendaftar.prodiId,
             pendaftar.tahunDaftar,
-            pendaftar.jenisKelasId
+            pendaftar.jenisMhsId
         );
 
         // Jalankan semua operasi dalam satu transaction untuk atomicity
@@ -94,9 +94,9 @@ const proses = async (req, res) => {
                     semester: 1,
                     status: 'AKTIF',
                     prodiId: pendaftar.prodiId,
-                    jenisKelasId: pendaftar.jenisKelasId
+                    jenisMhsId: pendaftar.jenisMhsId
                 },
-                include: { prodi: true, jenisKelas: true }
+                include: { prodi: true, jenisMhs: true }
             });
 
             // Update role: hapus PENDAFTAR, beri MAHASISWA
@@ -116,7 +116,7 @@ const proses = async (req, res) => {
             const daftarInfo = [
                 { label: 'Program Studi', value: mahasiswa.prodi?.nama },
                 { label: 'Jenjang', value: mahasiswa.prodi?.jenjang },
-                { label: 'Jenis Kelas', value: mahasiswa.jenisKelas?.nama || '-' },
+                { label: 'Jenis Mahasiswa', value: mahasiswa.jenisMhs?.nama || '-' },
                 { label: 'Tahun Angkatan', value: mahasiswa.tahunAngkatan },
                 { label: 'Semester', value: 1 },
             ];
@@ -196,7 +196,7 @@ const prosesMassal = async (req, res) => {
             try {
                 const pendaftar = await prisma.pendaftar.findUnique({
                     where: { id: parseInt(id) },
-                    include: { prodi: true, jenisKelas: true }
+                    include: { prodi: true, jenisMhs: true }
                 });
 
                 if (!pendaftar || pendaftar.status !== 'LULUS') {
@@ -213,7 +213,7 @@ const prosesMassal = async (req, res) => {
                 const nim = await generateNIM(
                     pendaftar.prodiId,
                     pendaftar.tahunDaftar,
-                    pendaftar.jenisKelasId
+                    pendaftar.jenisMhsId
                 );
 
                 // Gunakan transaction untuk atomicity
@@ -230,7 +230,7 @@ const prosesMassal = async (req, res) => {
                             semester: 1,
                             status: 'AKTIF',
                             prodiId: pendaftar.prodiId,
-                            jenisKelasId: pendaftar.jenisKelasId
+                            jenisMhsId: pendaftar.jenisMhsId
                         }
                     });
 
@@ -270,7 +270,7 @@ const pindahProdi = async (req, res) => {
         const mahasiswa = await prisma.mahasiswa.findUnique({ where: { id: mahasiswaId } });
         if (!mahasiswa) return res.status(404).json({ success: false, message: 'Mahasiswa tidak ditemukan!' });
 
-        const nimBaru = await generateNIM(prodiIdBaru, mahasiswa.tahunAngkatan, mahasiswa.jenisKelasId);
+        const nimBaru = await generateNIM(prodiIdBaru, mahasiswa.tahunAngkatan, mahasiswa.jenisMhsId);
 
         const updated = await prisma.mahasiswa.update({
             where: { id: mahasiswaId },

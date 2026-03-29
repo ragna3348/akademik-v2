@@ -7,10 +7,10 @@ const safeError = (error, msg = 'Terjadi kesalahan server!') =>
 
 const getAll = async (req, res) => {
     try {
-        const { prodiId, jenisKelasId, status, tahunAngkatan, search } = req.query;
+        const { prodiId, jenisMhsId, status, tahunAngkatan, search } = req.query;
         const where = {};
         if (prodiId) where.prodiId = parseInt(prodiId);
-        if (jenisKelasId) where.jenisKelasId = parseInt(jenisKelasId);
+        if (jenisMhsId) where.jenisMhsId = parseInt(jenisMhsId);
         if (status) where.status = status;
         if (tahunAngkatan) where.tahunAngkatan = parseInt(tahunAngkatan);
         if (search) where.OR = [
@@ -23,7 +23,7 @@ const getAll = async (req, res) => {
             where,
             include: {
                 prodi: { include: { fakultas: true } },
-                jenisKelas: true,
+                jenisMhs: true,
                 dosenWali: true
             },
             orderBy: { nim: 'asc' }
@@ -40,7 +40,7 @@ const getById = async (req, res) => {
             where: { id: parseInt(req.params.id) },
             include: {
                 prodi: { include: { fakultas: true } },
-                jenisKelas: true,
+                jenisMhs: true,
                 dosenWali: true,
                 krs: {
                     include: {
@@ -64,7 +64,7 @@ const create = async (req, res) => {
         const {
             nim, nama, email, telepon, alamat,
             tahunAngkatan, semester, status,
-            prodiId, jenisKelasId, dosenWaliId, password
+            prodiId, jenisMhsId, dosenWaliId, password
         } = req.body;
 
         if (!nim || !nama || !prodiId) {
@@ -105,10 +105,10 @@ const create = async (req, res) => {
                 semester: semester ? parseInt(semester) : 1,
                 status: status || 'AKTIF',
                 prodiId: parseInt(prodiId),
-                jenisKelasId: jenisKelasId ? parseInt(jenisKelasId) : null,
+                jenisMhsId: jenisMhsId ? parseInt(jenisMhsId) : null,
                 dosenWaliId: dosenWaliId ? parseInt(dosenWaliId) : null
             },
-            include: { prodi: true, jenisKelas: true }
+            include: { prodi: true, jenisMhs: true }
         });
 
         res.status(201).json({ success: true, message: 'Mahasiswa berhasil ditambahkan!', data });
@@ -125,7 +125,7 @@ const update = async (req, res) => {
         const {
             nama, email, telepon, alamat,
             tahunAngkatan, semester, status,
-            prodiId, jenisKelasId, dosenWaliId
+            prodiId, jenisMhsId, dosenWaliId
         } = req.body;
 
         const data = await prisma.mahasiswa.update({
@@ -139,10 +139,10 @@ const update = async (req, res) => {
                 semester: semester ? parseInt(semester) : 1,
                 status: status || 'AKTIF',
                 prodiId: parseInt(prodiId),
-                jenisKelasId: jenisKelasId ? parseInt(jenisKelasId) : null,
+                jenisMhsId: jenisMhsId ? parseInt(jenisMhsId) : null,
                 dosenWaliId: dosenWaliId ? parseInt(dosenWaliId) : null
             },
-            include: { prodi: true, jenisKelas: true, dosenWali: true }
+            include: { prodi: true, jenisMhs: true, dosenWali: true }
         });
         res.json({ success: true, message: 'Mahasiswa berhasil diupdate!', data });
     } catch (error) {

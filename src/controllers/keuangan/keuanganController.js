@@ -62,14 +62,14 @@ const create = async (req, res) => {
 
 const createMassal = async (req, res) => {
     try {
-        const { prodiId, jenisKelasId, tahunAngkatan, jenis, nominal, keterangan } = req.body;
+        const { prodiId, jenisMhsId, tahunAngkatan, jenis, nominal, keterangan } = req.body;
         if (!jenis || !nominal) {
             return res.status(400).json({ success: false, message: 'Jenis dan nominal wajib diisi!' });
         }
 
         const where = { status: 'AKTIF' };
         if (prodiId) where.prodiId = parseInt(prodiId);
-        if (jenisKelasId) where.jenisKelasId = parseInt(jenisKelasId);
+        if (jenisMhsId) where.jenisMhsId = parseInt(jenisMhsId);
         if (tahunAngkatan) where.tahunAngkatan = parseInt(tahunAngkatan);
 
         const mahasiswa = await prisma.mahasiswa.findMany({ where });

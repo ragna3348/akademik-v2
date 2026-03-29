@@ -8,18 +8,18 @@ const safeError = (error, msg = 'Terjadi kesalahan server!') =>
  * Generate NIM anti race-condition.
  * Menggunakan pendekatan: generate beberapa kandidat NIM dan retry jika sudah ada.
  */
-const generateNIM = async (prodiId, tahunDaftar, jenisKelasId, retries = 5) => {
+const generateNIM = async (prodiId, tahunDaftar, jenisMhsId, retries = 5) => {
     const prodi = await prisma.prodi.findUnique({ where: { id: prodiId } });
     if (!prodi) throw new Error('Program studi tidak ditemukan!');
 
-    const jenisKelas = jenisKelasId
-        ? await prisma.jenisKelas.findUnique({ where: { id: jenisKelasId } })
+    const jenisMhs = jenisMhsId
+        ? await prisma.jenisMahasiswa.findUnique({ where: { id: jenisMhsId } })
         : null;
 
     const kodeProdi = prodi.kodeNim;
     const tahun = String(tahunDaftar);
-    const kodeKelas = jenisKelas ? String(jenisKelas.kodeAngka) : '0';
-    const prefix = `${kodeProdi}${tahun}${kodeKelas}`;
+    const kodeMhs = jenisMhs ? String(jenisMhs.kodeAngka) : '0';
+    const prefix = `${kodeProdi}${tahun}${kodeMhs}`;
 
     for (let attempt = 0; attempt < retries; attempt++) {
         // Ambil NIM terakhir dengan locking — findFirst dengan urutan desc

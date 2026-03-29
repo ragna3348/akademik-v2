@@ -1,1 +1,1 @@
-web: npx prisma generate && npx prisma db push && node index.js
+web: npx prisma generate && npx prisma db push --accept-data-loss && node index.js

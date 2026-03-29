@@ -1,6 +1,7 @@
 const prisma = require('../../prisma/client');
 const { generateNoPendaftaran } = require('../../utils/noPendaftaran');
 const { kirimEmail } = require('../../utils/emailSender');
+const jwt = require('jsonwebtoken');
 
 // Helper sanitasi error
 const safeError = (error, msg = 'Terjadi kesalahan server!') =>
@@ -19,7 +20,7 @@ const getAll = async (req, res) => {
             include: {
                 prodi: true,
                 gelombang: true,
-                jenisKelas: true,
+                jenisMhs: true,
                 pembayaran: true
             },
             orderBy: { createdAt: 'desc' }
@@ -37,7 +38,7 @@ const getById = async (req, res) => {
             include: {
                 prodi: true,
                 gelombang: true,
-                jenisKelas: true,
+                jenisMhs: true,
                 pembayaran: true
             }
         });
@@ -54,8 +55,12 @@ const create = async (req, res) => {
             nama, nik, nisn, tempatLahir, tanggalLahir,
             jenisKelamin, agama, email, telepon, alamat,
             asalSekolah, tahunLulus, nilaiRaport,
-            gelombangId, prodiId, prodiId2, jenisKelasId
+            gelombangId, prodiId, prodiId2, jenisMhsId,
+            sumberInfo, kodeAfiliasi
         } = req.body;
+
+        // Backward compatibility
+        const jenisId = jenisMhsId || req.body.jenisKelasId;
 
         if (!nama || !email || !prodiId) {
             return res.status(400).json({
@@ -106,7 +111,9 @@ const create = async (req, res) => {
                 gelombangId: gelombangId ? parseInt(gelombangId) : null,
                 prodiId: parseInt(prodiId),
                 prodiId2: prodiId2 ? parseInt(prodiId2) : null,
-                jenisKelasId: jenisKelasId ? parseInt(jenisKelasId) : null,
+                jenisMhsId: jenisId ? parseInt(jenisId) : null,
+                sumberInfo: sumberInfo || null,
+                afiliasiId: null,
                 tahunDaftar, foto, dokumenKTP, dokumenKK, dokumenIjazah,
                 status: 'UJIAN'
             },
@@ -125,10 +132,40 @@ const create = async (req, res) => {
         //     });
         // }
 
+        // Handle kode afiliasi jika ada
+        if (kodeAfiliasi) {
+            const afiliasi = await prisma.userAfiliasi.findUnique({ where: { kodeAfiliasi } });
+            if (afiliasi && afiliasi.isAktif) {
+                await prisma.pendaftar.update({
+                    where: { id: data.id },
+                    data: { afiliasiId: afiliasi.id }
+                });
+            }
+        }
+
+        // Auto-login: generate token for the pendaftar's user account
+        let token = null;
+        let userData = null;
+        const user = await prisma.user.findUnique({
+            where: { email },
+            include: { roles: true }
+        });
+        if (user && process.env.JWT_SECRET) {
+            const roles = user.roles.map(r => r.role);
+            token = jwt.sign(
+                { id: user.id, nama: user.nama, email: user.email, roles },
+                process.env.JWT_SECRET,
+                { expiresIn: '24h' }
+            );
+            userData = { id: user.id, nama: user.nama, email: user.email, roles };
+        }
+
         res.status(201).json({
             success: true,
             message: 'Pendaftaran berhasil!',
-            data
+            data,
+            token,
+            user: userData
         });
 
     } catch (error) {
