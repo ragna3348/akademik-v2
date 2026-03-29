@@ -65,8 +65,9 @@ const register = async (req, res) => {
 
 // Login
 const login = async (req, res) => {
+    console.log('[LOGIN DEBUG] Memulai proses login untuk:', req.body.email);
     try {
-        const { email, password } = req.body; // 'email' di sini bertindak sebagai 'identifier'
+        const { email, password } = req.body;
         if (!email || !password) {
             return res.status(400).json({
                 success: false,
@@ -77,6 +78,7 @@ const login = async (req, res) => {
         const identifier = email;
 
         // 1. Cari by Email atau Username di tabel User
+        console.log('[LOGIN DEBUG] Step 1: Mencari di tabel User...');
         let user = await prisma.user.findFirst({
             where: {
                 OR: [
@@ -89,6 +91,7 @@ const login = async (req, res) => {
 
         // 2. Jika tidak ketemu, cari by NIM di tabel Mahasiswa
         if (!user) {
+            console.log('[LOGIN DEBUG] Step 2: Mencari di tabel Mahasiswa (NIM)...');
             const mahasiswa = await prisma.mahasiswa.findUnique({
                 where: { nim: identifier }
             });
@@ -102,6 +105,7 @@ const login = async (req, res) => {
 
         // 3. Jika tidak ketemu, cari by NIDN di tabel Dosen
         if (!user) {
+            console.log('[LOGIN DEBUG] Step 3: Mencari di tabel Dosen (NIDN)...');
             const dosen = await prisma.dosen.findUnique({
                 where: { nidn: identifier }
             });
@@ -113,32 +117,30 @@ const login = async (req, res) => {
             }
         }
 
-        const isMatch = user ? await bcrypt.compare(password, user.password) : false;
-
-        // --- DEBUG LOG UNTUK RAILWAY ---
-        if (identifier === 'superadmin@kampus.ac.id') {
-            console.log(`[DEBUG SUPERADMIN] Ditemukan: ${!!user}, isMatch: ${isMatch}, password hash length: ${user?.password?.length}`);
+        if (!user) {
+            console.log('[LOGIN DEBUG] User tidak ditemukan di sistem.');
+            return res.status(401).json({ success: false, message: 'Identifier atau password salah!' });
         }
 
-        if (!user || !isMatch) {
-            return res.status(401).json({
-                success: false,
-                message: 'Identifier atau password salah!'
-            });
+        console.log('[LOGIN DEBUG] User ditemukan, memverifikasi password...');
+        const isMatch = await bcrypt.compare(password, user.password);
+
+        if (!isMatch) {
+            console.log('[LOGIN DEBUG] Password tidak cocok.');
+            return res.status(401).json({ success: false, message: 'Identifier atau password salah!' });
         }
 
         if (!user.status) {
-            return res.status(401).json({
-                success: false,
-                message: 'Akun Anda telah dinonaktifkan!'
-            });
+            console.log('[LOGIN DEBUG] Akun nonaktif.');
+            return res.status(401).json({ success: false, message: 'Akun Anda telah dinonaktifkan!' });
         }
 
+        console.log('[LOGIN DEBUG] Membuat token JWT...');
         const roles = user.roles.map(r => r.role);
 
         if (!process.env.JWT_SECRET) {
-            console.error('[LOGIN ERROR] JWT_SECRET is not defined in environment variables!');
-            throw new Error('Konfigurasi server tidak lengkap (JWT_SECRET)');
+            console.error('[LOGIN ERROR] JWT_SECRET hilang dari environment variables Railway!');
+            return res.status(500).json({ success: false, message: 'Konfigurasi server (JWT) bermasalah!' });
         }
 
         const token = jwt.sign(
@@ -147,6 +149,7 @@ const login = async (req, res) => {
             { expiresIn: '24h' }
         );
 
+        console.log('[LOGIN DEBUG] Login berhasil untuk:', user.email);
         res.json({
             success: true,
             message: 'Login berhasil!',
@@ -160,7 +163,7 @@ const login = async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('[LOGIN ERROR]', error);
+        console.error('[LOGIN ERROR] Terjadi eksepsi:', error);
         res.status(500).json({ success: false, message: safeError(error) });
     }
 };
