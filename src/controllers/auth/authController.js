@@ -136,6 +136,11 @@ const login = async (req, res) => {
 
         const roles = user.roles.map(r => r.role);
 
+        if (!process.env.JWT_SECRET) {
+            console.error('[LOGIN ERROR] JWT_SECRET is not defined in environment variables!');
+            throw new Error('Konfigurasi server tidak lengkap (JWT_SECRET)');
+        }
+
         const token = jwt.sign(
             { id: user.id, nama: user.nama, email: user.email, roles },
             process.env.JWT_SECRET,
@@ -155,6 +160,7 @@ const login = async (req, res) => {
             }
         });
     } catch (error) {
+        console.error('[LOGIN ERROR]', error);
         res.status(500).json({ success: false, message: safeError(error) });
     }
 };
