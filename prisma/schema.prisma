@@ -360,9 +360,9 @@ model BankSoal {
   opsiD      String?
   jawaban    String
   kategori   String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  jawaban    JawabanUjian[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  jawabanUjian JawabanUjian[]
 }
 
 model UjianPMB {
