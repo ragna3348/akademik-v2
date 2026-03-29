@@ -65,7 +65,7 @@ model User {
   id        Int        @id @default(autoincrement())
   nama      String
   email     String     @unique
-  username  String?    @unique
+  username  String?
   password  String
   status    Boolean    @default(true)
   createdAt DateTime   @default(now())
