@@ -54,7 +54,7 @@ const create = async (req, res) => {
             nama, nik, nisn, tempatLahir, tanggalLahir,
             jenisKelamin, agama, email, telepon, alamat,
             asalSekolah, tahunLulus, nilaiRaport,
-            gelombangId, prodiId, jenisKelasId
+            gelombangId, prodiId, prodiId2, jenisKelasId
         } = req.body;
 
         if (!nama || !email || !prodiId) {
@@ -105,22 +105,25 @@ const create = async (req, res) => {
                 nilaiRaport: nilaiRaport ? parseFloat(nilaiRaport) : null,
                 gelombangId: gelombangId ? parseInt(gelombangId) : null,
                 prodiId: parseInt(prodiId),
+                prodiId2: prodiId2 ? parseInt(prodiId2) : null,
                 jenisKelasId: jenisKelasId ? parseInt(jenisKelasId) : null,
-                tahunDaftar, foto, dokumenKTP, dokumenKK, dokumenIjazah
+                tahunDaftar, foto, dokumenKTP, dokumenKK, dokumenIjazah,
+                status: 'UJIAN'
             },
             include: { prodi: true, gelombang: true }
         });
 
-        if (gelombangId && biayaDaftar > 0) {
-            await prisma.pembayaranMaba.create({
-                data: {
-                    pendaftarId: data.id,
-                    jenis: 'Biaya Pendaftaran',
-                    nominal: biayaDaftar,
-                    status: 'BELUM_BAYAR'
-                }
-            });
-        }
+        // Pembayaran pendaftaran dihapus atau dipindah setelah lulus ujian
+        // if (gelombangId && biayaDaftar > 0) {
+        //     await prisma.pembayaranMaba.create({
+        //         data: {
+        //             pendaftarId: data.id,
+        //             jenis: 'Biaya Pendaftaran',
+        //             nominal: biayaDaftar,
+        //             status: 'BELUM_BAYAR'
+        //         }
+        //     });
+        // }
 
         res.status(201).json({
             success: true,

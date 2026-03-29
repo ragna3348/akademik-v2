@@ -79,6 +79,7 @@ app.use('/pamaba/gelombang', require('./src/routes/pamaba/gelombangRoutes'));
 app.use('/pamaba/pendaftar', require('./src/routes/pamaba/pendaftarRoutes'));
 app.use('/pamaba/pembayaran', require('./src/routes/pamaba/pembayaranMabaRoutes'));
 app.use('/pamaba/afiliasi', require('./src/routes/pamaba/afiliasiRoutes'));
+app.use('/pamaba/ujian', require('./src/routes/pamaba/ujianRoutes'));
 
 // ===== PORTAL MAHASISWA =====
 app.use('/portal', require('./src/routes/portal/portalRoutes'));

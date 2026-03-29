@@ -42,6 +42,8 @@ enum StatusMahasiswa {
 enum StatusPendaftar {
   DAFTAR
   BAYAR
+  UJIAN
+  SELESAI_UJIAN
   LULUS
   GUGUR
 }
@@ -63,6 +65,7 @@ model User {
   id        Int        @id @default(autoincrement())
   nama      String
   email     String     @unique
+  username  String?    @unique
   password  String
   status    Boolean    @default(true)
   createdAt DateTime   @default(now())
@@ -120,7 +123,8 @@ model Prodi {
   fakultas   Fakultas?    @relation(fields: [fakultasId], references: [id])
   mahasiswa  Mahasiswa[]
   dosen      Dosen[]
-  pendaftar  Pendaftar[]
+  pendaftar1 Pendaftar[]  @relation("PilihanSatu")
+  pendaftar2 Pendaftar[]  @relation("PilihanDua")
   mataKuliah MataKuliah[]
 }
 
@@ -299,6 +303,7 @@ model Pendaftar {
   nilaiRaport   Float?
   gelombangId   Int?
   prodiId       Int
+  prodiId2      Int?
   jenisKelasId  Int?
   tahunDaftar   Int
   status        StatusPendaftar  @default(DAFTAR)
@@ -310,10 +315,12 @@ model Pendaftar {
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
   gelombang     Gelombang?       @relation(fields: [gelombangId], references: [id])
-  prodi         Prodi            @relation(fields: [prodiId], references: [id])
+  prodi         Prodi            @relation("PilihanSatu", fields: [prodiId], references: [id])
+  prodi2        Prodi?           @relation("PilihanDua", fields: [prodiId2], references: [id])
   jenisKelas    JenisKelas?      @relation(fields: [jenisKelasId], references: [id])
   pembayaran    PembayaranMaba[]
   afiliasi      UserAfiliasi?    @relation(fields: [afiliasiId], references: [id])
+  ujianPMB      UjianPMB?
 }
 
 model PembayaranMaba {
@@ -355,6 +362,34 @@ model BankSoal {
   kategori   String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  jawaban    JawabanUjian[]
+}
+
+model UjianPMB {
+  id          Int      @id @default(autoincrement())
+  pendaftarId Int      @unique
+  waktuMulai  DateTime @default(now())
+  waktuSelesai DateTime?
+  nilai       Float?
+  status      String   @default("BERLANGSUNG")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  pendaftar   Pendaftar @relation(fields: [pendaftarId], references: [id], onDelete: Cascade)
+  jawaban     JawabanUjian[]
+}
+
+model JawabanUjian {
+  id         Int      @id @default(autoincrement())
+  ujianId    Int
+  soalId     Int
+  jawaban    String?
+  raguRagu   Boolean  @default(false)
+  
+  ujian      UjianPMB  @relation(fields: [ujianId], references: [id], onDelete: Cascade)
+  soal       BankSoal  @relation(fields: [soalId], references: [id])
+
+  @@unique([ujianId, soalId])
 }
 
 model TemplatePesan {

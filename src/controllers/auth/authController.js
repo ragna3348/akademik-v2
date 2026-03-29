@@ -66,30 +66,64 @@ const register = async (req, res) => {
 // Login
 const login = async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { email, password } = req.body; // 'email' di sini bertindak sebagai 'identifier'
         if (!email || !password) {
             return res.status(400).json({
                 success: false,
-                message: 'Email dan password harus diisi!'
+                message: 'Email/Username/NIM/NIDN dan password harus diisi!'
             });
         }
 
-        const user = await prisma.user.findUnique({
-            where: { email },
+        const identifier = email;
+
+        // 1. Cari by Email atau Username di tabel User
+        let user = await prisma.user.findFirst({
+            where: {
+                OR: [
+                    { email: identifier },
+                    { username: identifier }
+                ]
+            },
             include: { roles: true }
         });
+
+        // 2. Jika tidak ketemu, cari by NIM di tabel Mahasiswa
+        if (!user) {
+            const mahasiswa = await prisma.mahasiswa.findUnique({
+                where: { nim: identifier }
+            });
+            if (mahasiswa && mahasiswa.email) {
+                user = await prisma.user.findUnique({
+                    where: { email: mahasiswa.email },
+                    include: { roles: true }
+                });
+            }
+        }
+
+        // 3. Jika tidak ketemu, cari by NIDN di tabel Dosen
+        if (!user) {
+            const dosen = await prisma.dosen.findUnique({
+                where: { nidn: identifier }
+            });
+            if (dosen && dosen.email) {
+                user = await prisma.user.findUnique({
+                    where: { email: dosen.email },
+                    include: { roles: true }
+                });
+            }
+        }
 
         const isMatch = user ? await bcrypt.compare(password, user.password) : false;
 
         // --- DEBUG LOG UNTUK RAILWAY ---
-        if (email === 'superadmin@kampus.ac.id') {
+        if (identifier === 'superadmin@kampus.ac.id') {
             console.log(`[DEBUG SUPERADMIN] Ditemukan: ${!!user}, isMatch: ${isMatch}, password hash length: ${user?.password?.length}`);
         }
 
         if (!user || !isMatch) {
             return res.status(401).json({
                 success: false,
-                message: 'Email atau password salah!'
+                message: 'Identifier atau password salah!'
             });
         }
 
@@ -116,6 +150,7 @@ const login = async (req, res) => {
                 id: user.id,
                 nama: user.nama,
                 email: user.email,
+                username: user.username,
                 roles
             }
         });
