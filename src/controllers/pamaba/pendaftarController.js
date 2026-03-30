@@ -96,6 +96,8 @@ const create = async (req, res) => {
         const dokumenKK = buildFilePath(req.files?.dokumenKK?.[0]);
         const dokumenIjazah = buildFilePath(req.files?.dokumenIjazah?.[0]);
 
+        const initialStatus = (gelombangId && biayaDaftar > 0) ? 'DAFTAR' : 'UJIAN';
+
         const data = await prisma.pendaftar.create({
             data: {
                 noPendaftaran,
@@ -115,22 +117,22 @@ const create = async (req, res) => {
                 sumberInfo: sumberInfo || null,
                 afiliasiId: null,
                 tahunDaftar, foto, dokumenKTP, dokumenKK, dokumenIjazah,
-                status: 'UJIAN'
+                status: initialStatus
             },
             include: { prodi: true, gelombang: true }
         });
 
-        // Pembayaran pendaftaran dihapus atau dipindah setelah lulus ujian
-        // if (gelombangId && biayaDaftar > 0) {
-        //     await prisma.pembayaranMaba.create({
-        //         data: {
-        //             pendaftarId: data.id,
-        //             jenis: 'Biaya Pendaftaran',
-        //             nominal: biayaDaftar,
-        //             status: 'BELUM_BAYAR'
-        //         }
-        //     });
-        // }
+        // Buat tagihan biaya pendaftaran jika ada
+        if (gelombangId && biayaDaftar > 0) {
+            await prisma.pembayaranMaba.create({
+                data: {
+                    pendaftarId: data.id,
+                    jenis: 'Biaya Pendaftaran',
+                    nominal: biayaDaftar,
+                    status: 'BELUM_BAYAR'
+                }
+            });
+        }
 
         // Handle kode afiliasi jika ada
         if (kodeAfiliasi) {

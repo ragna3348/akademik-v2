@@ -356,6 +356,7 @@ model PembayaranMaba {
   status      StatusPembayaran @default(BELUM_BAYAR)
   keterangan  String?
   tanggal     DateTime?
+  buktiBayar  String?
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
   pendaftar   Pendaftar        @relation(fields: [pendaftarId], references: [id])

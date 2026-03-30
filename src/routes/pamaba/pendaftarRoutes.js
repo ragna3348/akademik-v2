@@ -13,7 +13,12 @@ router.get('/by-email', auth, async (req, res) => {
         const { email } = req.query;
         const data = await prisma.pendaftar.findFirst({
             where: { email },
-            select: { noPendaftaran: true, status: true }
+            select: { 
+                id: true, 
+                noPendaftaran: true, 
+                status: true,
+                pembayaran: true // Ambil tagihannya
+            }
         });
         if (!data) return res.status(404).json({ success: false, message: 'Tidak ditemukan' });
         res.json({ success: true, data });
