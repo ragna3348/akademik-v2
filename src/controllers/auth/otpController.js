@@ -28,12 +28,21 @@ const safeError = (error, defaultMsg = 'Terjadi kesalahan server!') => {
 // Kirim OTP ke email
 const kirimKodeOTP = async (req, res) => {
     try {
-        const { nama, email, password, konfirmasiPassword } = req.body;
+        const { nama, email, password, konfirmasiPassword, username } = req.body;
 
-        if (!nama || !email || !password || !konfirmasiPassword) {
+        if (!nama || !email || !password || !konfirmasiPassword || !username) {
             return res.status(400).json({
                 success: false,
-                message: 'Semua field harus diisi!'
+                message: 'Nama, email, username, dan password harus diisi!'
+            });
+        }
+
+        // Cek username sudah terpakai
+        const existingUsername = await prisma.user.findFirst({ where: { username } });
+        if (existingUsername) {
+            return res.status(400).json({
+                success: false,
+                message: 'Username sudah digunakan!'
             });
         }
 
@@ -89,6 +98,7 @@ const kirimKodeOTP = async (req, res) => {
             expiredAt,
             nama,
             email,
+            username,
             password,
             attempts
         });
@@ -179,6 +189,7 @@ const verifikasiOTP = async (req, res) => {
             data: {
                 nama: data.nama,
                 email: data.email,
+                username: data.username || null,
                 password: hashedPassword,
                 roles: {
                     create: [{ role: 'PENDAFTAR' }]

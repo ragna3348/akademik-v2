@@ -84,6 +84,7 @@ app.use('/pamaba/pembayaran', require('./src/routes/pamaba/pembayaranMabaRoutes'
 app.use('/pamaba/afiliasi', require('./src/routes/pamaba/afiliasiRoutes'));
 app.use('/pamaba/ujian', require('./src/routes/pamaba/ujianRoutes'));
 app.use('/pamaba/bank-soal', require('./src/routes/pamaba/bankSoalRoutes'));
+app.use('/pamaba/dosen', require('./src/routes/pamaba/dosenRegistrasiRoutes'));
 
 // ===== PORTAL MAHASISWA =====
 app.use('/portal', require('./src/routes/portal/portalRoutes'));
@@ -107,4 +108,14 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
     console.log(`✅ Server berjalan di http://localhost:${PORT}`);
+
+    // ===== CRON: Auto-cleanup stale accounts =====
+    const cron = require('node-cron');
+    const { cleanupStaleAccounts } = require('./src/utils/cleanup');
+    // Jalankan setiap hari jam 02:00 WIB
+    cron.schedule('0 2 * * *', () => {
+        console.log('[CRON] Running stale account cleanup...');
+        cleanupStaleAccounts();
+    });
+    console.log('🕐 Cron cleanup scheduled (daily 02:00)');
 });
