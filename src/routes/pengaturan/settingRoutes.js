@@ -31,11 +31,8 @@ const upload = multer({
     }
 });
 
-router.use(auth);
-router.use(roleCheck('SUPER_ADMIN'));
-
 router.get('/', getAll);
-router.put('/', update);
-router.post('/upload-logo', upload.single('logo'), uploadLogo);
+router.put('/', auth, roleCheck('SUPER_ADMIN'), update);
+router.post('/upload-logo', auth, roleCheck('SUPER_ADMIN'), upload.single('logo'), uploadLogo);
 
 module.exports = router;
