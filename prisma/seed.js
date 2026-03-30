@@ -14,6 +14,7 @@ async function main() {
             data: {
                 nama: 'Super Admin',
                 email: 'superadmin@kampus.ac.id',
+                username: 'superadmin',
                 password,
                 roles: {
                     create: { role: 'SUPER_ADMIN' }
@@ -22,7 +23,11 @@ async function main() {
         });
         console.log('✅ Super Admin berhasil dibuat:', user.email);
     } else {
-        console.log('⚠️ Super Admin sudah ada, dilewati.');
+        await prisma.user.update({
+            where: { email: 'superadmin@kampus.ac.id' },
+            data: { username: 'superadmin' }
+        });
+        console.log('✅ Super Admin sudah ada, username diperbarui.');
     }
 
     // ===== Setting Umum =====
