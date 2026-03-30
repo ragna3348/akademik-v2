@@ -3,6 +3,7 @@ const router = express.Router();
 const auth = require('../../middleware/auth');
 const roleCheck = require('../../middleware/roleCheck');
 const upload = require('../../middleware/upload');
+const prisma = require('../../prisma/client');
 const { getAll, getById, create, updateStatus, getDashboardStats } = require('../../controllers/pamaba/pendaftarController');
 
 router.get('/stats', auth, roleCheck('SUPER_ADMIN', 'ADMIN', 'PAMABA', 'AKADEMIK'), getDashboardStats);
