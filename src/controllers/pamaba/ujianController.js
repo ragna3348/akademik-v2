@@ -12,7 +12,7 @@ const getSoalUjian = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Pendaftar tidak ditemukan!' });
         }
 
-        if (pendaftar.status === 'SELESAI_UJIAN' || pendaftar.status === 'LULUS' || pendaftar.status === 'GUGUR') {
+        if (pendaftar.status === 'SELESAI_UJIAN' || pendaftar.status === 'LULUS' || pendaftar.status === 'GAGAL') {
             return res.status(400).json({ success: false, message: 'Ujian sudah diselesaikan!' });
         }
 
@@ -125,9 +125,13 @@ const akhiriUjian = async (req, res) => {
             }
         });
 
+        const setPj = await prisma.settingUmum.findUnique({ where: { kunci: 'PASSING_GRADE_CBT' } });
+        const threshold = setPj ? parseFloat(setPj.nilai) : 80;
+        const statusKelulusan = skor >= threshold ? 'LULUS' : 'GAGAL';
+
         await prisma.pendaftar.update({
             where: { id: ujian.pendaftarId },
-            data: { status: 'SELESAI_UJIAN' }
+            data: { status: statusKelulusan }
         });
 
         res.json({

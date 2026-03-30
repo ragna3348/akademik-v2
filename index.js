@@ -75,6 +75,7 @@ app.use('/jadwal', require('./src/routes/akademik/jadwalRoutes'));
 
 // ===== KEUANGAN =====
 app.use('/keuangan/jenis', require('./src/routes/keuangan/jenisKeuanganRoutes'));
+app.use('/keuangan/harga', require('./src/routes/keuangan/hargaKeuanganRoutes'));
 app.use('/keuangan', require('./src/routes/keuangan/keuanganRoutes'));
 
 // ===== PAMABA =====

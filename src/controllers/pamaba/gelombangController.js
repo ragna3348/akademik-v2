@@ -33,10 +33,10 @@ const getById = async (req, res) => {
 
 const create = async (req, res) => {
     try {
-        const { nama, tahun, tanggalBuka, tanggalTutup, biayaDaftar } = req.body;
-        if (!nama || !tahun || !tanggalBuka || !tanggalTutup || !biayaDaftar) {
+        const { nama, tahun, tanggalBuka, tanggalTutup, diskonUKP } = req.body;
+        if (!nama || !tahun || !tanggalBuka || !tanggalTutup) {
             return res.status(400).json({
-                success: false, message: 'Semua field harus diisi!'
+                success: false, message: 'Semua field wajib harus diisi!'
             });
         }
         const data = await prisma.gelombang.create({
@@ -44,7 +44,7 @@ const create = async (req, res) => {
                 nama, tahun: parseInt(tahun),
                 tanggalBuka: new Date(tanggalBuka),
                 tanggalTutup: new Date(tanggalTutup),
-                biayaDaftar: parseFloat(biayaDaftar)
+                diskonUKP: diskonUKP ? parseInt(diskonUKP) : 0
             }
         });
         res.status(201).json({
@@ -57,7 +57,7 @@ const create = async (req, res) => {
 
 const update = async (req, res) => {
     try {
-        const { nama, tahun, tanggalBuka, tanggalTutup, biayaDaftar, isAktif } = req.body;
+        const { nama, tahun, tanggalBuka, tanggalTutup, diskonUKP, isAktif } = req.body;
         const data = await prisma.gelombang.update({
             where: { id: parseInt(req.params.id) },
             data: {
@@ -65,7 +65,7 @@ const update = async (req, res) => {
                 tahun: tahun ? parseInt(tahun) : undefined,
                 tanggalBuka: tanggalBuka ? new Date(tanggalBuka) : undefined,
                 tanggalTutup: tanggalTutup ? new Date(tanggalTutup) : undefined,
-                biayaDaftar: biayaDaftar ? parseFloat(biayaDaftar) : undefined,
+                diskonUKP: diskonUKP !== undefined ? parseInt(diskonUKP) : undefined,
                 isAktif: isAktif !== undefined ? isAktif : undefined
             }
         });

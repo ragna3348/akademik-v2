@@ -45,7 +45,7 @@ enum StatusPendaftar {
   UJIAN
   SELESAI_UJIAN
   LULUS
-  GUGUR
+  GAGAL
 }
 
 enum StatusPembayaran {
@@ -279,6 +279,19 @@ model JenisKeuangan {
   isAktif    Boolean  @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  harga      HargaKeuangan[]
+}
+
+model HargaKeuangan {
+  id              Int           @id @default(autoincrement())
+  jenisKeuanganId Int
+  nominal         Float
+  angkatan        Int?
+  keterangan      String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  jenisKeuangan   JenisKeuangan @relation(fields: [jenisKeuanganId], references: [id], onDelete: Cascade)
 }
 
 model Keuangan {
@@ -302,7 +315,7 @@ model Gelombang {
   tahun        Int
   tanggalBuka  DateTime
   tanggalTutup DateTime
-  biayaDaftar  Int
+  diskonUKP    Int?        @default(0)
   isAktif      Boolean     @default(false)
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt

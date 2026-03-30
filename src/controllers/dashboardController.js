@@ -24,7 +24,7 @@ const getDashboard = async (req, res) => {
             prisma.mataKuliah.count({ where: { isAktif: true } }),
             prisma.pendaftar.count(),
             prisma.pendaftar.count({ where: { status: 'LULUS' } }),
-            prisma.pendaftar.count({ where: { status: 'GUGUR' } }),
+            prisma.pendaftar.count({ where: { status: 'GAGAL' } }),
             prisma.kRS.count({ where: { status: 'DIAJUKAN' } }),
             prisma.keuangan.aggregate({
                 where: { status: 'belum_bayar' },

@@ -82,13 +82,18 @@ const create = async (req, res) => {
             tahunDaftar,
             gelombangId ? parseInt(gelombangId) : 0
         );
-
+        // Cari harga Pendaftaran di Master Keuangan
         let biayaDaftar = 0;
-        if (gelombangId) {
-            const gelombang = await prisma.gelombang.findUnique({
-                where: { id: parseInt(gelombangId) }
-            });
-            if (gelombang) biayaDaftar = gelombang.biayaDaftar;
+        let jenisTagihan = 'Biaya Pendaftaran';
+        
+        const jenisPendaftaran = await prisma.jenisKeuangan.findFirst({
+            where: { nama: { contains: 'pendaftar', mode: 'insensitive' } },
+            include: { harga: true }
+        });
+        
+        if (jenisPendaftaran && jenisPendaftaran.harga.length > 0) {
+            biayaDaftar = jenisPendaftaran.harga[0].nominal;
+            jenisTagihan = jenisPendaftaran.nama;
         }
 
         const foto = buildFilePath(req.files?.foto?.[0]);
@@ -96,7 +101,7 @@ const create = async (req, res) => {
         const dokumenKK = buildFilePath(req.files?.dokumenKK?.[0]);
         const dokumenIjazah = buildFilePath(req.files?.dokumenIjazah?.[0]);
 
-        const initialStatus = (gelombangId && biayaDaftar > 0) ? 'DAFTAR' : 'UJIAN';
+        const initialStatus = (biayaDaftar > 0) ? 'DAFTAR' : 'UJIAN';
 
         const data = await prisma.pendaftar.create({
             data: {
@@ -123,11 +128,11 @@ const create = async (req, res) => {
         });
 
         // Buat tagihan biaya pendaftaran jika ada
-        if (gelombangId && biayaDaftar > 0) {
+        if (biayaDaftar > 0) {
             await prisma.pembayaranMaba.create({
                 data: {
                     pendaftarId: data.id,
-                    jenis: 'Biaya Pendaftaran',
+                    jenis: jenisTagihan,
                     nominal: biayaDaftar,
                     status: 'BELUM_BAYAR'
                 }
@@ -199,8 +204,8 @@ const updateStatus = async (req, res) => {
             data: { status }
         });
 
-        // Jika GUGUR → hapus akun user + kirim email
-        if (status === 'GUGUR') {
+        // Jika GAGAL → hapus akun user + kirim email
+        if (status === 'GAGAL') {
             // Hapus user berdasarkan email
             const user = await prisma.user.findUnique({
                 where: { email: pendaftar.email }
@@ -212,7 +217,7 @@ const updateStatus = async (req, res) => {
                 await prisma.user.delete({ where: { id: user.id } });
             }
 
-            // Kirim email pemberitahuan gugur
+            // Kirim email pemberitahuan gagal
             try {
                 await kirimEmail(
                     pendaftar.email,
@@ -258,7 +263,7 @@ const updateStatus = async (req, res) => {
 
         res.json({
             success: true,
-            message: `Status diupdate ke ${status}!${status === 'GUGUR' ? ' Akun pendaftar telah dihapus dan email pemberitahuan telah dikirim.' : ''}`,
+            message: `Status diupdate ke ${status}!${status === 'GAGAL' ? ' Akun pendaftar telah dihapus dan email pemberitahuan telah dikirim.' : ''}`,
             data
         });
 
@@ -273,7 +278,7 @@ const getDashboardStats = async (req, res) => {
             prisma.pendaftar.count(),
             prisma.pendaftar.count({ where: { status: 'BAYAR' } }),
             prisma.pendaftar.count({ where: { status: 'LULUS' } }),
-            prisma.pendaftar.count({ where: { status: 'GUGUR' } })
+            prisma.pendaftar.count({ where: { status: 'GAGAL' } })
         ]);
         res.json({
             success: true,

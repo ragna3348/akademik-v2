@@ -15,7 +15,7 @@ const getAll = async (req, res) => {
             ...a,
             totalPendaftar: a.pendaftar.length,
             pendaftarLulus: a.pendaftar.filter(p => p.status === 'LULUS').length,
-            pendaftarGugur: a.pendaftar.filter(p => p.status === 'GUGUR').length,
+            pendaftarGagal: a.pendaftar.filter(p => p.status === 'GAGAL').length,
         }));
 
         res.json({ success: true, total: data.length, data: result });
