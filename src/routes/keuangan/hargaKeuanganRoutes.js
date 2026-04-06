@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { getAll, getById, create, update, remove } = require('../../controllers/keuangan/hargaController');
-const auth = require('../../middlewares/auth');
-const adminOrKeuangan = require('../../middlewares/roleCheck')(['SUPER_ADMIN', 'ADMIN', 'KEUANGAN']);
+const auth = require('../../middleware/auth');
+const adminOrKeuangan = require('../../middleware/roleCheck')(['SUPER_ADMIN', 'ADMIN', 'KEUANGAN']);
 
 router.use(auth);
 
